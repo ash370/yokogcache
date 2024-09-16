@@ -19,7 +19,7 @@ type Group struct {
 	name       string
 	localCache *cache     //本地的缓存
 	retriever  Retriever  //用于从数据源获取数据
-	server     NodePicker //分布式节点服务器
+	server     PeerPicker //分布式节点服务器
 	flight     *singleflight.Flight
 }
 
@@ -34,15 +34,17 @@ func NewGroup(name string, cap int64, retriever Retriever) *Group {
 		retriever:  retriever,
 		flight:     &singleflight.Flight{},
 	}
+
 	//先加锁(并发写需要加锁，可以并发读)，再将当前group加入全局的groups映射里
 	mu.Lock()
 	groups[name] = g
 	mu.Unlock()
+
 	return g
 }
 
 // 将 实现了 Picker 接口的节点池注入到 Group 中
-func (g *Group) RegisterServer(p NodePicker) {
+func (g *Group) RegisterServer(p PeerPicker) {
 	if g.server != nil {
 		panic("group had been registed server")
 	}
@@ -55,6 +57,7 @@ func GetGroup(name string) *Group {
 	mu.RLock()
 	g := groups[name]
 	mu.RUnlock()
+
 	return g
 }
 
@@ -74,8 +77,8 @@ func (g *Group) Get(key string) (ByteView, error) {
 func (g *Group) load(key string) (val ByteView, err error) {
 	view, err := g.flight.Fly(key, func() (interface{}, error) {
 		if g.server != nil {
-			if node, ok := g.server.Pick(key); ok { //选出节点
-				if val, err = g.getFromNode(node, key); err == nil {
+			if peer, ok := g.server.Pick(key); ok { //选出节点
+				if val, err = g.getFromNode(peer, key); err == nil {
 					return val, err
 				}
 				log.Println("[YokoGcache] Failed to get from peer", err)

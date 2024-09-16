@@ -12,7 +12,7 @@ type ConsistentHash struct {
 	hash     Hash
 	replicas int
 	ring     []int
-	nodesMap map[int]string
+	peersMap map[int]string
 }
 
 func NewConsistentHash(replicas int, fn Hash) *ConsistentHash {
@@ -22,19 +22,19 @@ func NewConsistentHash(replicas int, fn Hash) *ConsistentHash {
 	return &ConsistentHash{
 		replicas: replicas,
 		hash:     fn,
-		nodesMap: map[int]string{},
+		peersMap: map[int]string{},
 	}
 }
 
-func (ch *ConsistentHash) AddTruthNodes(nodes ...string) {
-	for _, node := range nodes {
+func (ch *ConsistentHash) AddTruthNodes(peers ...string) {
+	for _, peer := range peers {
 		for i := 0; i < ch.replicas; i++ {
 			//真实节点映射到虚拟节点，
 			//每个真实节点创建倍数个虚拟节点
 			//通过添加编号的方法区分不同虚拟节点
-			hash := int(ch.hash([]byte(strconv.Itoa(i) + node)))
+			hash := int(ch.hash([]byte(strconv.Itoa(i) + peer)))
 			ch.ring = append(ch.ring, hash)
-			ch.nodesMap[hash] = node
+			ch.peersMap[hash] = peer
 		}
 	}
 	sort.Ints(ch.ring)
@@ -49,5 +49,5 @@ func (ch *ConsistentHash) GetTruthNode(key string) string {
 	idx := sort.Search(len(ch.ring), func(i int) bool { //返回环上第一个大于key哈希值的值的下标
 		return ch.ring[i] >= hashVal
 	})
-	return ch.nodesMap[ch.ring[idx%len(ch.ring)]]
+	return ch.peersMap[ch.ring[idx%len(ch.ring)]]
 }

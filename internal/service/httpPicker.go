@@ -9,10 +9,10 @@ import (
 	"yokogcache/internal/service/consistenthash"
 )
 
-var _ NodePicker = (*HTTPPool)(nil)
+var _ PeerPicker = (*HTTPPool)(nil)
 
 type HTTPPool struct {
-	//node's base URL, "http://example.net:8000"
+	//peer's base URL, "http://example.net:8000"
 	self         string //like localhost:9999
 	basePath     string //默认"/_yokogcache/"作为前缀
 	ring         *consistenthash.ConsistentHash
@@ -39,7 +39,9 @@ func (h *HTTPPool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasPrefix(r.URL.Path, h.basePath) {
 		panic("HTTPPool serving unexpected path: " + r.URL.Path)
 	}
+
 	h.Log("%s %s", r.Method, r.URL.Path)
+
 	//地址格式要求：/<basepath>/<groupname>/<key>
 	parts := strings.SplitN(r.URL.Path[len(h.basePath):], "/", 2)
 	if len(parts) != 2 {

@@ -8,7 +8,7 @@ import (
 )
 
 type httpFetcher struct {
-	baseURL string //要访问的远程节点的地址，类似http://example.com/_yokogcache/
+	baseURL string //要访问的远程节点的地址，such "http://localhost:9999/_yokogcache/"
 }
 
 var _ Fetcher = (*httpFetcher)(nil)

@@ -8,7 +8,7 @@ const (
 //抽象出的接口
 
 // 负责挑选节点，即根据一致性哈希算法找到查询的key应该访问集群中的哪个节点
-type NodePicker interface {
+type PeerPicker interface {
 	Pick(key string) (Fetcher, bool)
 }
 

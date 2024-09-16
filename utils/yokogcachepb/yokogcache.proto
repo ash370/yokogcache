@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package yokogcachepb;
+
+option go_package = ".";
+
+message GetRequest {
+  string group = 1;
+  string key = 2;
+}
+
+message GetResponse {
+  bytes value = 1;
+}
+
+service YokogCache {
+  rpc Get(GetRequest) returns (GetResponse);
+}

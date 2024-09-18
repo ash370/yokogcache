@@ -78,10 +78,10 @@ func (g *Group) load(key string) (val ByteView, err error) {
 	view, err := g.flight.Fly(key, func() (interface{}, error) {
 		if g.server != nil {
 			if peer, ok := g.server.Pick(key); ok { //选出节点
-				if val, err = g.getFromNode(peer, key); err == nil {
+				if val, err = g.getFromPeer(peer, key); err == nil {
 					return val, err
 				}
-				log.Println("[YokoGcache] Failed to get from peer", err)
+				log.Println("[YokogCache] Failed to get from peer, err: ", err)
 			}
 		}
 		//没有分布式节点，从本地数据库获取数据
@@ -111,8 +111,8 @@ func (g *Group) populateCache(key string, value ByteView) {
 }
 
 // 从远程节点获取缓存
-func (g *Group) getFromNode(node Fetcher, key string) (ByteView, error) {
-	bytes, err := node.Fetch(g.name, key)
+func (g *Group) getFromPeer(peer Fetcher, key string) (ByteView, error) {
+	bytes, err := peer.Fetch(g.name, key)
 	if err != nil {
 		return ByteView{}, err
 	}

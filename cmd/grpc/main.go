@@ -41,7 +41,7 @@ func main() {
 	//添加peers
 	addrs, err := discovery.GetPeers("clusters") //获取etcd集群中该前缀下的所有地址
 	if err != nil {
-		addrs = []string{"localhost:9999"}
+		addrs = []string{"localhost:8001"}
 	}
 	svr.UpdatePeers(addrs...)
 	yoko.RegisterServer(svr)

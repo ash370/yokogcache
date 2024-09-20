@@ -14,7 +14,7 @@ const (
 var (
 	defaultEtcdConfig = clientv3.Config{
 		Endpoints:   []string{"localhost:2379"}, //本地etcd服务默认在2379端口监听客户端请求
-		DialTimeout: 5 * time.Second,            //建立连接的超时时间
+		DialTimeout: 10 * time.Second,           //建立连接的超时时间
 	}
 )
 

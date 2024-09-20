@@ -7,7 +7,6 @@ import (
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/naming/resolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -17,19 +16,19 @@ ClientConn 表示与概念端点的虚拟连接，用于执行 RPC，ClientConn 
 */
 // EtcdDial向grpc请求服务，返回connection
 func EtcdDial(c *clientv3.Client, serviceName string) (*grpc.ClientConn, error) {
-	etcdResolve, err := resolver.NewBuilder(c)
+	/*etcdResolve, err := resolver.NewBuilder(c)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 	addr := serviceName[11:] //todo: 为什么不取出地址无法访问...
 	return grpc.NewClient(
 		//"etcd:///"+serviceName,
 		addr,
-		grpc.WithResolvers(etcdResolve),
+		//grpc.WithResolvers(etcdResolve),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	//return grpc.NewClient("etcd:///YokogCache", grpc.WithResolvers(etcdResolve), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	//return grpc.NewClient(fmt.Sprintf("etcd:///%s", "YokogCache"), grpc.WithResolvers(etcdResolve), grpc.WithTransportCredentials(insecure.NewCredentials()) /*, grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`)*/)
 	//为什么client.go里面可以这样建立连接，但是在这里不行？这里就得取出地址
 }
 

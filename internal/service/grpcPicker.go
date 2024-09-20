@@ -23,8 +23,8 @@ type GRPCPool struct {
 	mu           sync.Mutex
 	grpcFetchers map[string]*grpcFetcher
 
-	status bool //true:running  false:stop
-	//stopSignal chan error //通知register revoke(撤销)服务
+	status     bool       //true:running  false:stop
+	stopSignal chan error //通知register revoke(撤销)服务
 }
 
 func NewGRPCPool(self string) (*GRPCPool, error) {
@@ -43,7 +43,6 @@ func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 	gp.ring.AddTruthNodes(peerAddrs...)
 	gp.grpcFetchers = map[string]*grpcFetcher{}
 
-	// 注意：此操作是覆写操作，peersIP 必须满足 x.x.x.x:port 的格式
 	for _, peerAddrs := range peerAddrs {
 		if !utils.ValidPeerAddr(peerAddrs) {
 			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddrs))
@@ -57,6 +56,7 @@ func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 		// 注意 serviceName 要和你在 protocol 文件中定义的服务名称一致
 		service := fmt.Sprintf("YokogCache/%s", peerAddrs) //这个前缀后面是所有服务节点地址
 		gp.grpcFetchers[peerAddrs] = &grpcFetcher{serviceName: service}
+		//gp.grpcFetchers[peerAddrs] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
 }
 
@@ -136,11 +136,20 @@ func (gp *GRPCPool) Run() error {
 	//5.
 	go func() {
 		// Register never return unless stop signal received (blocked)
-		err = discovery.Register("YokogCache", gp.self)
+		err = discovery.Register("YokogCache", gp.self, gp.stopSignal)
 		if err != nil {
 			log.Fatal(err)
 		}
+		//close channel
+		close(gp.stopSignal)
+		err = lis.Close()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		log.Printf("[%s] Revoke service and close tcp socket ok.", gp.self)
 	}()
+
+	log.Printf("[%s] register service ok\n", gp.self)
 
 	gp.mu.Unlock()
 

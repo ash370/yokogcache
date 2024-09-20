@@ -28,7 +28,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	_, err = cli.Put(ctx, "clusters/localhost:10000", "localhost:10000")
+	_, err = cli.Put(ctx, "clusters/localhost:8002", "localhost:8002")
 	if err != nil {
 		log.Fatal("put groupcache service to etcd failed")
 		return

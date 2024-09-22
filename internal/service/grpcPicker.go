@@ -7,7 +7,8 @@ import (
 	"net"
 	"strings"
 	"sync"
-	discovery "yokogcache/internal/middleware/etcd/discovery1"
+	"time"
+	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service/consistenthash"
 	"yokogcache/utils"
 	pb "yokogcache/utils/yokogcachepb"
@@ -25,39 +26,78 @@ type GRPCPool struct {
 
 	status     bool       //true:running  false:stop
 	stopSignal chan error //通知register revoke(撤销)服务
+
+	update chan bool //用于传递节点更新信号
 }
 
-func NewGRPCPool(self string) (*GRPCPool, error) {
+func NewGRPCPool(self string, update chan bool) (*GRPCPool, error) {
 	//检查地址格式
 	if !utils.ValidPeerAddr(self) {
 		return nil, fmt.Errorf("invalid addr %s, it should be x.x.x.x:port", self)
 	}
-	return &GRPCPool{self: self}, nil
+	return &GRPCPool{self: self, update: update}, nil
 }
 
 func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 	gp.mu.Lock()
-	defer gp.mu.Unlock()
 
 	gp.ring = consistenthash.NewConsistentHash(defaultReplicas, nil)
 	gp.ring.AddTruthNodes(peerAddrs...)
 	gp.grpcFetchers = map[string]*grpcFetcher{}
 
-	for _, peerAddrs := range peerAddrs {
-		if !utils.ValidPeerAddr(peerAddrs) {
-			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddrs))
+	for _, peerAddr := range peerAddrs {
+		if !utils.ValidPeerAddr(peerAddr) {
+			gp.mu.Unlock()
+			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddr))
 		}
-		// YokogCache/localhost:9999
-		// YokogCache/localhost:10000
-		// YokogCache/localhost:10001
+		// YokogCache/localhost:8001
+		// YokogCache/localhost:8002
+		// YokogCache/localhost:8003
 		// attention：服务发现原理建议看下 Endpoint 源码, key 是 serviceName/addr value 是 addr
 		// 服务解析时按照 serviceName 进行前缀查询，找到所有服务节点
 		// 而 clusters 前缀是为了拿到所有实例地址做一致性哈希使用的
 		// 注意 serviceName 要和你在 protocol 文件中定义的服务名称一致
-		service := fmt.Sprintf("YokogCache/%s", peerAddrs) //这个前缀后面是所有服务节点地址
-		gp.grpcFetchers[peerAddrs] = &grpcFetcher{serviceName: service}
-		//gp.grpcFetchers[peerAddrs] = &grpcFetcher{"YokogCache"} //服务名访问
+		//service := fmt.Sprintf("YokogCache/%s", peerAddrs)
+		//gp.grpcFetchers[peerAddrs] = &grpcFetcher{serviceName: service}
+		gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
+	gp.mu.Unlock()
+
+	//开启一个goroutine用于监听节点变更
+	go func() {
+		for {
+			select {
+			case <-gp.update: //接收到true说明节点数量发生变化(新增或删除)，重构哈希环
+				gp.reconstruct()
+			case <-gp.stopSignal:
+				gp.Stop()
+			default:
+				time.Sleep(time.Second * 2)
+			}
+		}
+	}()
+}
+
+func (gp *GRPCPool) reconstruct() {
+	serviceList, err := discovery.ListServicePeers("YokogCache")
+	if err != nil { // 如果没有拿到服务实例列表，暂时先维持当前视图
+		return
+	}
+
+	gp.mu.Lock()
+	gp.ring = consistenthash.NewConsistentHash(defaultReplicas, nil)
+	gp.ring.AddTruthNodes(serviceList...)
+	gp.grpcFetchers = map[string]*grpcFetcher{}
+
+	for _, peerAddr := range serviceList {
+		if !utils.ValidPeerAddr(peerAddr) {
+			gp.mu.Unlock()
+			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddr))
+		}
+		gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
+	}
+	gp.mu.Unlock()
+	log.Printf("hash ring reconstruct, contain service peer %v", serviceList)
 }
 
 // 实现grpc.pb.go里的服务端接口，和本地缓存逻辑交互 group.Get(key)
@@ -120,7 +160,7 @@ func (gp *GRPCPool) Run() error {
 
 	//1. 2.
 	gp.status = true
-	//gp.stopSignal = make(chan error)
+	gp.stopSignal = make(chan error)
 
 	//3.
 	port := strings.Split(gp.self, ":")[1]
@@ -132,6 +172,7 @@ func (gp *GRPCPool) Run() error {
 	//4.
 	grpcServer := grpc.NewServer()
 	pb.RegisterYokogCacheServer(grpcServer, gp) //grpcServer会调用已注册的服务YokogCache来响应请求
+	defer gp.Stop()
 
 	//5.
 	go func() {
@@ -142,9 +183,10 @@ func (gp *GRPCPool) Run() error {
 		}
 		//close channel
 		close(gp.stopSignal)
+
 		err = lis.Close()
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Panic(err.Error())
 		}
 		log.Printf("[%s] Revoke service and close tcp socket ok.", gp.self)
 	}()
@@ -161,4 +203,18 @@ func (gp *GRPCPool) Run() error {
 		return fmt.Errorf("grpcServer failed to serve %s, error: %v", gp.self, err)
 	}
 	return nil
+}
+
+func (gp *GRPCPool) Stop() {
+	gp.mu.Lock()
+	defer gp.mu.Unlock()
+
+	if !gp.status {
+		return
+	}
+
+	gp.stopSignal <- nil //通知停止心跳（Register函数会返回了）
+	gp.status = false
+	gp.grpcFetchers = nil
+	gp.ring = nil
 }

@@ -8,6 +8,7 @@ import (
 	pb "yokogcache/utils/yokogcachepb"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/naming/resolver"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -20,24 +21,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	/*etcdResolver, err := resolver.NewBuilder(cli)
+	etcdResolver, err := resolver.NewBuilder(cli)
 	if err != nil {
 		panic(err)
-	}*/
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	resp, err := cli.Get(ctx, "clusters", clientv3.WithPrefix())
+	/*resp, err := cli.Get(ctx, "clusters", clientv3.WithPrefix())
 	if err != nil {
 		log.Fatalln("从 etcd 获取节点地址失败")
 		return
 	}
 
 	addr := string(resp.Kvs[0].Value)
-	log.Printf("获取地址: %s", addr)
+	log.Printf("获取地址: %s", addr)*/
 
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	//conn, err := grpc.NewClient("etcd:///YokogCache", grpc.WithResolvers(etcdResolver), grpc.WithTransportCredentials(insecure.NewCredentials()) /*, grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`)*/)
+	//conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("etcd:///YokogCache", grpc.WithResolvers(etcdResolver), grpc.WithTransportCredentials(insecure.NewCredentials()) /*, grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`)*/)
 	//"etcd:///YokogCache/localhost:9999"无法访问，=》要么用服务名访问，要么直接用地址
 	//使用etcd后，每次的查询请求可能会发给不同的节点
 

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	discovery "yokogcache/internal/middleware/etcd/discovery1"
+	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service"
 )
 
@@ -33,13 +33,20 @@ func main() {
 
 	yoko := createGroup()
 	addr := fmt.Sprintf("localhost:%d", port)
-	svr, err := service.NewGRPCPool(addr)
+
+	updateChan := make(chan bool)
+	svr, err := service.NewGRPCPool(addr, updateChan)
 	if err != nil {
 		log.Fatalf("fail to init server at %s, err: %v", addr, err)
 	}
 
+	// get a grpc service instance（通过通信来共享内存而不是通过共享内存来通信）
+
+	//监听服务节点的变更
+	go discovery.DynamicServices(updateChan, "YokogCache")
+
 	//添加peers
-	addrs, err := discovery.GetPeers("clusters") //获取etcd集群中该前缀下的所有地址
+	addrs, err := discovery.ListServicePeers("YokogCache") //获取etcd集群中该前缀下的所有地址
 	if err != nil {
 		addrs = []string{"localhost:8001"}
 	}

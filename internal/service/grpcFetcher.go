@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-	discovery "yokogcache/internal/middleware/etcd/discovery1"
+	discovery "yokogcache/internal/middleware/etcd/discovery2"
 
 	pb "yokogcache/utils/yokogcachepb"
 
@@ -26,7 +26,7 @@ func (gf *grpcFetcher) Fetch(group string, key string) ([]byte, error) {
 	defer cli.Close()
 
 	//发现服务，etcd客户端向grpc请求服务，返回和目标服务器的连接
-	conn, err := discovery.EtcdDial(cli, gf.serviceName)
+	conn, err := discovery.Discovery(cli, gf.serviceName)
 	if err != nil {
 		return nil, err
 	}

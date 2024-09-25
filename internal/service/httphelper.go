@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 	"net/http"
+	"yokogcache/utils/logger"
 )
 
 // 启动缓存服务器：创建HTTPPool，添加节点信息，注册到Group里
@@ -10,8 +11,8 @@ func StartHTTPCacheServer(addr string, addrs []string, yokogcache *Group) {
 	peers := NewHTTPPool(addr)
 	peers.UpdatePeers(addrs...)
 	yokogcache.RegisterServer(peers)
-	log.Println("yokogcache is running at", addr)   //addr是本地服务端
-	log.Fatal(http.ListenAndServe(addr[7:], peers)) //监听远程节点是否有请求
+	logger.LogrusObj.Info("yokogcache is running at", addr) //addr是本地服务端
+	log.Fatal(http.ListenAndServe(addr[7:], peers))         //监听远程节点是否有请求
 }
 
 // 启动一个 API 服务（端口 9999），与用户进行交互
@@ -31,6 +32,6 @@ func StartHTTPAPIServer(apiAddr string, yokogcache *Group) {
 			w.Write(view.ByteSlice())
 		},
 	))
-	log.Println("fontend server is running at", apiAddr)
+	logger.LogrusObj.Info("fontend server is running at", apiAddr)
 	log.Fatal(http.ListenAndServe(apiAddr[7:], nil))
 }

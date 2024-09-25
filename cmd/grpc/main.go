@@ -6,6 +6,7 @@ import (
 	"log"
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service"
+	"yokogcache/utils/logger"
 )
 
 var db = map[string]string{
@@ -17,7 +18,7 @@ var db = map[string]string{
 func createGroup() *service.Group {
 	return service.NewGroup("scores", 2<<10, service.RetrieverFunc(
 		func(key string) ([]byte, error) {
-			log.Println("[SlowDB] search key", key)
+			logger.LogrusObj.Infoln("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
 				return []byte(v), nil
 			}
@@ -37,7 +38,8 @@ func main() {
 	updateChan := make(chan bool)
 	svr, err := service.NewGRPCPool(addr, updateChan)
 	if err != nil {
-		log.Fatalf("fail to init server at %s, err: %v", addr, err)
+		logger.LogrusObj.Errorf("fail to init server at %s, err: %v", addr, err)
+		return
 	}
 
 	// get a grpc service instance（通过通信来共享内存而不是通过共享内存来通信）
@@ -52,9 +54,9 @@ func main() {
 	}
 	svr.UpdatePeers(addrs...)
 	yoko.RegisterServer(svr)
-	log.Println("groupcache is running at ", addr)
+	logger.LogrusObj.Infoln("groupcache is running at ", addr)
 	// 启动服务（注册服务至 etcd、计算一致性 hash）
-	err = svr.Run()
+	svr.Run()
 	if err != nil {
 		log.Fatal(err)
 	}

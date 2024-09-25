@@ -2,9 +2,9 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"yokogcache/internal/service/singleflight"
+	"yokogcache/utils/logger"
 )
 
 //在cache上再封装一层，能够为缓存命名、填充缓存等
@@ -67,7 +67,7 @@ func (g *Group) Get(key string) (ByteView, error) {
 		return ByteView{}, fmt.Errorf("key required")
 	}
 	if v, ok := g.localCache.get(key); ok { //在本地已被缓存
-		log.Println("cache hit")
+		logger.LogrusObj.Infof("缓存命中..., key %s...", key)
 		return v, nil
 	}
 	//cache missing,get it another way
@@ -81,7 +81,7 @@ func (g *Group) load(key string) (val ByteView, err error) {
 				if val, err = g.getFromPeer(peer, key); err == nil {
 					return val, err
 				}
-				log.Println("[YokogCache] Failed to get from peer, err: ", err)
+				logger.LogrusObj.Warnf("Failed to get %s from peer,err:%s\n", key, err)
 			}
 		}
 		//没有分布式节点，从本地数据库获取数据
@@ -98,6 +98,7 @@ func (g *Group) load(key string) (val ByteView, err error) {
 func (g *Group) getLocally(key string) (ByteView, error) {
 	bytes, err := g.retriever.retrieve(key)
 	if err != nil {
+		//todo: 对于不存在的key，为了防止缓存穿透，先在缓存中存一个空值并设置合理的过期时间
 		return ByteView{}, err
 	}
 	value := ByteView{b: cloneBytes(bytes)} //取回的原始数据是字节切片，存其深拷贝的值，防止原始数据被篡改

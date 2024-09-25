@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
 	"yokogcache/internal/service/consistenthash"
+	"yokogcache/utils/logger"
 )
 
 var _ PeerPicker = (*HTTPPool)(nil)
@@ -30,7 +30,7 @@ func NewHTTPPool(self string) *HTTPPool {
 
 // 日志打印时加上服务器名称
 func (h *HTTPPool) Log(format string, v ...interface{}) {
-	log.Printf("[Server %s] %s", h.self, fmt.Sprintf(format, v...))
+	logger.LogrusObj.Infof("[Server %s] %s", h.self, fmt.Sprintf(format, v...))
 }
 
 // 实现Handler接口，服务端监听到的请求会进入这里被处理

@@ -1,6 +1,9 @@
 package singleflight
 
-import "sync"
+import (
+	"sync"
+	"yokogcache/utils/logger"
+)
 
 //提供缓存击穿的保护
 //当cache并发访问节点获取缓存时，如果节点未缓存该值则会向db发送大量的请求 导致db的压力骤增
@@ -26,6 +29,8 @@ func (f *Flight) Fly(key string, fn func() (interface{}, error)) (interface{}, e
 		f.flight = make(map[string]*packet)
 	}
 	if p, ok := f.flight[key]; ok {
+		//已经有其他goroutine在查询
+		logger.LogrusObj.Warnf("%s 已经在查询，阻塞... 等待其他goroutine返回...", key)
 		f.mu.Unlock()
 		p.wg.Wait()
 		return p.val, p.err

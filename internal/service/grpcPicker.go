@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -11,6 +10,7 @@ import (
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service/consistenthash"
 	"yokogcache/utils"
+	"yokogcache/utils/logger"
 	pb "yokogcache/utils/yokogcachepb"
 
 	"google.golang.org/grpc"
@@ -97,26 +97,26 @@ func (gp *GRPCPool) reconstruct() {
 		gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
 	gp.mu.Unlock()
-	log.Printf("hash ring reconstruct, contain service peer %v", serviceList)
+	logger.LogrusObj.Infof("hash ring reconstruct, contain service peer %v", serviceList)
 }
 
 // 实现grpc.pb.go里的服务端接口，和本地缓存逻辑交互 group.Get(key)
 func (gp *GRPCPool) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse, error) {
 	response := &pb.GetResponse{}
 
-	groupname := in.Group
-	key := in.Key
+	groupname := in.GetGroup()
+	key := in.GetKey()
 
-	log.Printf("[yokogcache-svr %s] Recv RPC Request - (%s)/(%s)", gp.self, groupname, key)
+	logger.LogrusObj.Infof("[yokogcache-svr %s] Recv RPC Request - (%s)/(%s)", gp.self, groupname, key)
 
 	group := groups[groupname]
 	if group == nil {
-		gp.Log("no such group %v", groupname)
+		gp.Warn("no such group %v", groupname)
 		return response, fmt.Errorf("no such group %v", groupname)
 	}
 	value, err := group.Get(key)
 	if err != nil {
-		gp.Log("get key %v error %v", key, err)
+		gp.Warn("get key %v error %v", key, err)
 		return response, err
 	}
 	response.Value = value.ByteSlice()
@@ -124,8 +124,8 @@ func (gp *GRPCPool) Get(ctx context.Context, in *pb.GetRequest) (*pb.GetResponse
 }
 
 // 日志打印时加上服务器名称
-func (gp *GRPCPool) Log(format string, v ...interface{}) {
-	log.Printf("[Server %s] %s", gp.self, fmt.Sprintf(format, v...))
+func (gp *GRPCPool) Warn(format string, v ...interface{}) {
+	logger.LogrusObj.Warnf("[Server %s] %s", gp.self, fmt.Sprintf(format, v...))
 }
 
 func (gp *GRPCPool) Pick(key string) (Fetcher, bool) {
@@ -133,17 +133,21 @@ func (gp *GRPCPool) Pick(key string) (Fetcher, bool) {
 	defer gp.mu.Unlock()
 
 	if peerAddr := gp.ring.GetTruthNode(key); peerAddr != "" && peerAddr != gp.self {
-		gp.Log("[current peer %s] Pick remote peer %s", gp.self, peerAddr)
+		logger.LogrusObj.Infof("[current peer %s] Pick remote peer %s", gp.self, peerAddr)
 		return gp.grpcFetchers[peerAddr], true
+	} else {
+		//pick itself
+		gp.Warn("pick itself")
 	}
 	return nil, false
 }
 
-func (gp *GRPCPool) Run() error {
+func (gp *GRPCPool) Run() {
 	gp.mu.Lock()
 	if gp.status {
 		gp.mu.Unlock()
-		return fmt.Errorf("yokogcache-svr %s already started", gp.self)
+		fmt.Printf("yokogcache-svr %s already started", gp.self)
+		return
 	}
 
 	/*
@@ -166,7 +170,8 @@ func (gp *GRPCPool) Run() error {
 	port := strings.Split(gp.self, ":")[1]
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		return fmt.Errorf("failed to listen %s, error: %v", gp.self, err)
+		fmt.Printf("failed to listen %s, error: %v", gp.self, err)
+		return
 	}
 
 	//4.
@@ -177,21 +182,21 @@ func (gp *GRPCPool) Run() error {
 	//5.
 	go func() {
 		// Register never return unless stop signal received (blocked)
-		err = discovery.Register("YokogCache", gp.self, gp.stopSignal)
+		err := discovery.Register("YokogCache", gp.self, gp.stopSignal)
 		if err != nil {
-			log.Fatal(err)
+			logger.LogrusObj.Error(err.Error())
 		}
 		//close channel
 		close(gp.stopSignal)
 
 		err = lis.Close()
 		if err != nil {
-			log.Panic(err.Error())
+			logger.LogrusObj.Error(err.Error())
 		}
-		log.Printf("[%s] Revoke service and close tcp socket ok.", gp.self)
+		logger.LogrusObj.Warnf("[%s] Revoke service and close tcp socket ok.", gp.self)
 	}()
 
-	log.Printf("[%s] register service ok\n", gp.self)
+	logger.LogrusObj.Infof("[%s] register service ok\n", gp.self)
 
 	gp.mu.Unlock()
 
@@ -200,9 +205,9 @@ func (gp *GRPCPool) Run() error {
 		service goroutines 读取 gRPC 请求，然后调用已注册的服务来给出响应。
 	*/
 	if err := grpcServer.Serve(lis); gp.status && err != nil {
-		return fmt.Errorf("grpcServer failed to serve %s, error: %v", gp.self, err)
+		logger.LogrusObj.Fatalf("failed to serve %s, error: %v", gp.self, err)
+		return
 	}
-	return nil
 }
 
 func (gp *GRPCPool) Stop() {

@@ -2,7 +2,7 @@ package discovery2
 
 import (
 	"context"
-	"log"
+	"yokogcache/utils/logger"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
@@ -30,37 +30,37 @@ func Discovery(c *clientv3.Client, serviceName string) (*grpc.ClientConn, error)
 
 // 根据服务名发现节点
 func ListServicePeers(serviceName string) ([]string, error) {
-	cli, err := clientv3.NewFromURL("http://localhost:2379")
+	cli, err := clientv3.New(defaultEtcdConfig)
 	if err != nil {
-		log.Fatalf("failed to create etcd client, err: %v", err)
+		logger.LogrusObj.Errorf("failed to connected to etcd, error: %v", err)
 		return []string{}, err
 	}
 
 	endPointsManager, err := endpoints.NewManager(cli, serviceName)
 	if err != nil {
-		log.Panicf("create endpoints manager failed, %v", err)
+		logger.LogrusObj.Errorf("create endpoints manager failed, %v", err)
 		return []string{}, err
 	}
 
 	key2EndpointMap, err := endPointsManager.List(context.Background())
 	if err != nil {
-		log.Panicf("enpoint manager list op failed, %v", err)
+		logger.LogrusObj.Errorf("enpoint manager list op failed, %v", err)
 		return []string{}, err
 	}
 
 	peers := []string{}
 	for key, endpoint := range key2EndpointMap {
 		peers = append(peers, endpoint.Addr)
-		log.Printf("found endpoint %s (%s):(%s)", key, endpoint.Addr, endpoint.Metadata)
+		logger.LogrusObj.Infof("found endpoint %s (%s):(%s)", key, endpoint.Addr, endpoint.Metadata)
 	}
 	return peers, nil
 }
 
 // 动态监听节点变更
 func DynamicServices(update chan bool, serviceName string) {
-	cli, err := clientv3.NewFromURL("http://localhost:2379")
+	cli, err := clientv3.New(defaultEtcdConfig)
 	if err != nil {
-		log.Fatalf("failed to create etcd client, err: %v", err)
+		logger.LogrusObj.Errorf("failed to connected to etcd, error: %v", err)
 		return
 	}
 	defer cli.Close()
@@ -75,10 +75,10 @@ func DynamicServices(update chan bool, serviceName string) {
 			switch ev.Type {
 			case clientv3.EventTypePut:
 				update <- true // 通知 endpoint manager 重构哈希环
-				log.Printf("Service endpoint added or updated: %s", string(ev.Kv.Value))
+				logger.LogrusObj.Warnf("Service endpoint added or updated: %s", string(ev.Kv.Value))
 			case clientv3.EventTypeDelete:
 				update <- true // 通知 endpoint manager 重构哈希环
-				log.Printf("Service endpoint removed: %s", string(ev.Kv.Value))
+				logger.LogrusObj.Warnf("Service endpoint removed: %s", string(ev.Kv.Key))
 			}
 		}
 	}

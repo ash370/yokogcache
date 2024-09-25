@@ -1,21 +1,8 @@
 package service
 
-import (
-	"time"
-
-	clientv3 "go.etcd.io/etcd/client/v3"
-)
-
 const (
 	defaultBasePath = "/_yokogcache/"
 	defaultReplicas = 50
-)
-
-var (
-	defaultEtcdConfig = clientv3.Config{
-		Endpoints:   []string{"localhost:2379"}, //本地etcd服务默认在2379端口监听客户端请求
-		DialTimeout: 10 * time.Second,           //建立连接的超时时间
-	}
 )
 
 //抽象出的接口

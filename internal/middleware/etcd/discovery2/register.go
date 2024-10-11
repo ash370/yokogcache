@@ -50,7 +50,7 @@ func Register(serviceName string, addr string, stop chan error) error {
 		return fmt.Errorf("set keepalive failed: %v", err)
 	}
 
-	logger.LogrusObj.Debugf("EtcdRegistry %s/%s ok\n", serviceName, addr)
+	logger.LogrusObj.Debugf("EtcdRegistry %s ok\n", serviceName)
 
 	for {
 		select {

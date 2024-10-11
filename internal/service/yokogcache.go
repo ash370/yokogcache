@@ -84,6 +84,9 @@ func (g *Group) load(key string) (val ByteView, err error) {
 				logger.LogrusObj.Warnf("Failed to get %s from peer,err:%s\n", key, err)
 			}
 		}
+		//todo:
+		//查询布隆过滤器确认key是否存在
+
 		//没有分布式节点，从本地数据库获取数据
 		return g.getLocally(key)
 	})

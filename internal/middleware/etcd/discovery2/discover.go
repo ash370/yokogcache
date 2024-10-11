@@ -12,7 +12,8 @@ import (
 )
 
 /*
-ClientConn 表示与概念端点的虚拟连接，用于执行 RPC，ClientConn 可根据配置、负载等情况，与端点自由建立零个或多个实际连接。
+ClientConn 表示与概念端点的虚拟连接，用于执行 RPC，
+ClientConn 可根据配置、负载等情况，与端点自由建立零个或多个实际连接。
 */
 // 向grpc请求服务，返回connection
 func Discovery(c *clientv3.Client, serviceName string) (*grpc.ClientConn, error) {
@@ -25,6 +26,7 @@ func Discovery(c *clientv3.Client, serviceName string) (*grpc.ClientConn, error)
 		"etcd:///"+serviceName,
 		grpc.WithResolvers(etcdResolve),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		//grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy":"round_robin"}`),
 	)
 }
 

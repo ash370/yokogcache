@@ -31,7 +31,7 @@ func main() {
 
 	client_stub := pb.NewYokogCacheClient(conn)
 
-	response, err := client_stub.Get(context.TODO(), &pb.GetRequest{Key: "Tom", Group: "scores"})
+	response, err := client_stub.Get(context.TODO(), &pb.GetRequest{Key: "Ella Robinson", Group: "scores"})
 	if err != nil {
 		log.Fatalln("没有查询到这个人的记录", err.Error())
 		return

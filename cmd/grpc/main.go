@@ -1,33 +1,46 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"strconv"
+	"yokogcache/internal/db/dbservice"
+	"yokogcache/internal/db/model"
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service"
 	"yokogcache/utils/logger"
 )
 
-var db = map[string]string{
+/*var db = map[string]string{
 	"Tom":  "630",
 	"Jack": "589",
 	"Sam":  "567",
-}
+}*/
 
 func createGroup() *service.Group {
+	dbop := dbservice.NewStudentDB(context.Background())
 	return service.NewGroup("scores", 2<<10, service.RetrieverFunc(
 		func(key string) ([]byte, error) {
 			logger.LogrusObj.Infoln("[SlowDB] search key", key)
-			if v, ok := db[key]; ok {
-				return []byte(v), nil
+			var val model.Student
+			if err := dbop.Where("name=?", key).Find(&val); err != nil {
+				tmp := strconv.Itoa(int(val.Score))
+				return []byte(tmp), nil
+			} else {
+				return nil, fmt.Errorf("%s not exist", key)
 			}
-			return nil, fmt.Errorf("%s not exist", key)
+			/*if v, ok := db[key]; ok {
+				return []byte(v), nil
+			}*/
+			//return nil, fmt.Errorf("%s not exist", key)
 		}))
 }
 
 // 分别在端口9999、10000、100001启动服务器节点组成集群
 func main() {
+	//utils.InitDB()
 	var port int
 	flag.IntVar(&port, "port", 9999, "Yokogcache server port")
 	flag.Parse()

@@ -57,7 +57,7 @@ func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 		// 服务解析时按照 serviceName 进行前缀查询，找到所有服务节点
 		// 而 clusters 前缀是为了拿到所有实例地址做一致性哈希使用的
 		// 注意 serviceName 要和你在 protocol 文件中定义的服务名称一致
-		service := fmt.Sprintf("YokogCache/%s", peerAddr)
+		service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
 		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: service}
 		//gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
@@ -94,7 +94,7 @@ func (gp *GRPCPool) reconstruct() {
 			gp.mu.Unlock()
 			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddr))
 		}
-		service := fmt.Sprintf("YokogCache/%s", peerAddr)
+		service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
 		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: service}
 		//gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
@@ -184,7 +184,7 @@ func (gp *GRPCPool) Run() {
 	//5.
 	go func() {
 		// Register never return unless stop signal received (blocked)
-		err := discovery.Register("YokogCache/"+gp.self, gp.self, gp.stopSignal)
+		err := discovery.Register("YokogCache/"+"server"+port, gp.self, gp.stopSignal)
 		if err != nil {
 			logger.LogrusObj.Error(err.Error())
 		}

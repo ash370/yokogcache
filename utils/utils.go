@@ -1,6 +1,8 @@
 package utils
 
-import "strings"
+import (
+	"strings"
+)
 
 // 检查是否满足x.x.x.x:port格式
 func ValidPeerAddr(addr string) bool {

@@ -62,7 +62,7 @@ func ListServicePeers(serviceName string) ([]string, error) {
 func DynamicServices(update chan bool, serviceName string) {
 	cli, err := clientv3.New(defaultEtcdConfig)
 	if err != nil {
-		logger.LogrusObj.Errorf("failed to connected to etcd, error: %v", err)
+		logger.LogrusObj.Errorf("[DynamicServices - ]failed to connected to etcd, error: %v", err)
 		return
 	}
 	defer cli.Close()

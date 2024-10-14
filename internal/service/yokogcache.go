@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"sync"
+	delayqueue "yokogcache/internal/middleware/etcd/delayQueue"
 	"yokogcache/internal/service/singleflight"
 	"yokogcache/utils/logger"
 )
@@ -21,6 +22,8 @@ type Group struct {
 	retriever  Retriever  //用于从数据源获取数据
 	server     PeerPicker //分布式节点服务器
 	flight     *singleflight.Flight
+
+	que *delayqueue.DelayQueue //延迟队列
 }
 
 func NewGroup(name string, cap int64, retriever Retriever) *Group {
@@ -28,11 +31,17 @@ func NewGroup(name string, cap int64, retriever Retriever) *Group {
 	if retriever == nil {
 		panic("nil retriever")
 	}
+
+	signal := make(chan string, 10)
+	go delayqueue.DynamicKeyexpire(signal)
+
 	g := &Group{
-		name:       name,
-		localCache: &cache{capacity: cap},
+		name: name,
+		//localCache: &cache{capacity: cap},
+		localCache: newCache(cap, signal), //为了在后台开启守护协程监听ttl
 		retriever:  retriever,
 		flight:     &singleflight.Flight{},
+		que:        delayqueue.NewDelayQueue(),
 	}
 
 	//先加锁(并发写需要加锁，可以并发读)，再将当前group加入全局的groups映射里
@@ -59,6 +68,17 @@ func GetGroup(name string) *Group {
 	mu.RUnlock()
 
 	return g
+}
+
+// 向缓存空间打入缓存，入队列
+func (g *Group) Put(key string, val ByteView, ttl int64) error {
+	//路由
+
+	g.localCache.add(key, val)
+	if err := g.que.Push(key, ttl); err != nil {
+		return err
+	}
+	return nil
 }
 
 // 从缓存空间里获取缓存值，这里封装三种获取缓存的途径
@@ -105,14 +125,14 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 		return ByteView{}, err
 	}
 	value := ByteView{b: cloneBytes(bytes)} //取回的原始数据是字节切片，存其深拷贝的值，防止原始数据被篡改
-	g.populateCache(key, value)             //数据存入缓存
+	//g.populateCache(key, value)             //数据存入缓存
 	return value, nil
 }
 
 // 提供填充缓存的能力
-func (g *Group) populateCache(key string, value ByteView) {
+/*func (g *Group) populateCache(key string, value ByteView) {
 	g.localCache.add(key, value)
-}
+}*/
 
 // 从远程节点获取缓存
 func (g *Group) getFromPeer(peer Fetcher, key string) (ByteView, error) {

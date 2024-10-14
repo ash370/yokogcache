@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"sync"
 	"yokogcache/internal/service/lru"
+	"yokogcache/utils/logger"
 )
 
 //负责对lru模块的并发控制 =》对lru.Cache加锁
@@ -12,6 +14,24 @@ type cache struct {
 	mu       sync.Mutex
 	lru      *lru.Cache
 	capacity int64 //缓存最大容量
+}
+
+func newCache(cap int64, signal <-chan string) *cache {
+	c := &cache{
+		capacity: cap,
+	}
+	//go func(){
+	//	listening...
+	//	c.delete(key)
+	//}
+	go func() {
+		for key := range signal {
+			logger.LogrusObj.Infof("Cache execute deleting key %s ...", key)
+			c.delete(key)
+			logger.LogrusObj.Infof("key %s deleted", key)
+		}
+	}()
+	return c
 }
 
 // 并发读写，封装add方法和get方法
@@ -34,4 +54,13 @@ func (c *cache) get(key string) (value ByteView, ok bool) {
 		return v.(ByteView), ok
 	}
 	return
+}
+
+func (c *cache) delete(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.lru == nil {
+		return
+	}
+	fmt.Printf("key %s expire, deleting...\n", key)
 }

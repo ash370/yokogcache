@@ -7,6 +7,8 @@ import (
 	"yokogcache/utils/logger"
 )
 
+var limit = 15
+
 //负责对lru模块的并发控制 =》对lru.Cache加锁
 
 // 将cache和淘汰算法解耦，如果修改了淘汰算法，只需要在cache里修改成员即可
@@ -14,6 +16,8 @@ type cache struct {
 	mu       sync.Mutex
 	lru      *lru.Cache
 	capacity int64 //缓存最大容量
+
+	cnt int //put操作的计数器
 }
 
 func newCache(cap int64, signal <-chan string) *cache {
@@ -42,6 +46,12 @@ func (c *cache) add(key string, value ByteView) {
 		c.lru = lru.New(c.capacity, nil)
 	}
 	c.lru.Add(key, value)
+
+	c.cnt++
+	if c.cnt == limit {
+		logger.LogrusObj.Info("写入次数达到阈值，触发后台快照...")
+		go c.lru.Persist()
+	}
 }
 
 func (c *cache) get(key string) (value ByteView, ok bool) {

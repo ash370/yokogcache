@@ -95,7 +95,7 @@ func (c *Cache) RemoveOldest() {
 	}
 }
 
-func (c *Cache) Persist() {
+func (c *Cache) Persist(log []string) {
 	if c.snapshot == nil {
 		c.snapshot = persistent.NewSnapshot("dump.spst")
 	}
@@ -103,4 +103,6 @@ func (c *Cache) Persist() {
 	if err != nil {
 		logger.LogrusObj.Error("持久化失败, err:", err)
 	}
+
+	//完成之后还要追加增量log
 }

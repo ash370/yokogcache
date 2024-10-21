@@ -17,12 +17,15 @@ type cache struct {
 	lru      *lru.Cache
 	capacity int64 //缓存最大容量
 
-	cnt int //put操作的计数器
+	cnt        int  //put操作的计数器
+	isSnapshot bool //标记是否在快照期间
+	log        []string
 }
 
 func newCache(cap int64, signal <-chan string) *cache {
 	c := &cache{
 		capacity: cap,
+		log:      []string{},
 	}
 	//go func(){
 	//	listening...
@@ -45,12 +48,23 @@ func (c *cache) add(key string, value ByteView) {
 	if c.lru == nil {
 		c.lru = lru.New(c.capacity, nil)
 	}
+
+	if c.isSnapshot {
+		//snapshot期间，先存入切片缓存
+		c.log = append(c.log, "add"+key+value.String())
+	}
+
 	c.lru.Add(key, value)
 
 	c.cnt++
 	if c.cnt == limit {
 		logger.LogrusObj.Info("写入次数达到阈值，触发后台快照...")
-		go c.lru.Persist()
+		c.isSnapshot = true
+		go c.lru.Persist(c.log)
+	}
+
+	if !c.isSnapshot {
+		//不在snapshot期间，写log文件
 	}
 }
 

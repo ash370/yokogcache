@@ -24,15 +24,16 @@ func main() {
 	defer ch.Close()
 
 	args := amqp.Table{}
-	args["x-dead-letter-exchange"] = "delay"
+	args["x-dead-letter-exchange"] = ""
+	args["x-dead-letter-routing-key"] = "arrivequeue"
 
 	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		args,    // arguments
+		"delayqueue", // name
+		false,        // durable
+		false,        // delete when unused
+		false,        // exclusive
+		false,        // no-wait
+		args,         // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -46,9 +47,23 @@ func main() {
 		false,  // immediate
 		amqp.Publishing{
 			ContentType: "text/plain",
-			Expiration:  "1000",
+			Expiration:  "5000",
 			Body:        []byte(body),
 		})
 	failOnError(err, "Failed to publish a message")
-	log.Printf(" [x] Sent %s\n", body)
+	log.Printf(" [x] Sent %s, timeNow:%s\n", body, time.Now().String())
+
+	body2 := "key2"
+	err = ch.PublishWithContext(ctx,
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Expiration:  "1000",
+			Body:        []byte(body2),
+		})
+	failOnError(err, "Failed to publish a message")
+	log.Printf(" [x] Sent %s, timeNow:%s\n", body2, time.Now().String())
 }

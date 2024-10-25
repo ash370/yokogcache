@@ -19,10 +19,11 @@ import (
 type GRPCPool struct {
 	pb.UnimplementedYokogCacheServer
 
-	self         string //ip:port
-	ring         *consistenthash.ConsistentHash
-	mu           sync.Mutex
-	grpcFetchers map[string]*grpcFetcher
+	self            string //ip:port
+	selfServiceName string
+	ring            *consistenthash.ConsistentHash
+	mu              sync.Mutex
+	grpcFetchers    map[string]*grpcFetcher
 
 	status     bool       //true:running  false:stop
 	stopSignal chan error //通知register revoke(撤销)服务
@@ -35,7 +36,7 @@ func NewGRPCPool(self string, update chan bool) (*GRPCPool, error) {
 	if !utils.ValidPeerAddr(self) {
 		return nil, fmt.Errorf("invalid addr %s, it should be x.x.x.x:port", self)
 	}
-	return &GRPCPool{self: self, update: update}, nil
+	return &GRPCPool{self: self, selfServiceName: "YokogCache/server" + self[10:], update: update}, nil
 }
 
 func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
@@ -46,10 +47,10 @@ func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 	gp.grpcFetchers = map[string]*grpcFetcher{}
 
 	for _, peerAddr := range peerAddrs {
-		if !utils.ValidPeerAddr(peerAddr) {
+		/*if !utils.ValidPeerAddr(peerAddr) {
 			gp.mu.Unlock()
 			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddr))
-		}
+		}*/
 		// YokogCache/localhost:8001
 		// YokogCache/localhost:8002
 		// YokogCache/localhost:8003
@@ -57,8 +58,8 @@ func (gp *GRPCPool) UpdatePeers(peerAddrs ...string) {
 		// 服务解析时按照 serviceName 进行前缀查询，找到所有服务节点
 		// 而 clusters 前缀是为了拿到所有实例地址做一致性哈希使用的
 		// 注意 serviceName 要和你在 protocol 文件中定义的服务名称一致
-		service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
-		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: service}
+		//service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
+		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: peerAddr}
 		//gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
 	gp.mu.Unlock()
@@ -90,12 +91,12 @@ func (gp *GRPCPool) reconstruct() {
 	gp.grpcFetchers = map[string]*grpcFetcher{}
 
 	for _, peerAddr := range serviceList {
-		if !utils.ValidPeerAddr(peerAddr) {
+		/*if !utils.ValidPeerAddr(peerAddr) {
 			gp.mu.Unlock()
 			panic(fmt.Sprintf("[peer %s] invalid addr format, it should be x.x.x.x:port", peerAddr))
-		}
-		service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
-		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: service}
+		}*/
+		//service := fmt.Sprintf("YokogCache/server%s", peerAddr[10:])
+		gp.grpcFetchers[peerAddr] = &grpcFetcher{serviceName: peerAddr}
 		//gp.grpcFetchers[peerAddr] = &grpcFetcher{"YokogCache"} //服务名访问
 	}
 	gp.mu.Unlock()
@@ -134,7 +135,7 @@ func (gp *GRPCPool) Pick(key string) (Fetcher, bool) {
 	gp.mu.Lock()
 	defer gp.mu.Unlock()
 
-	if peerAddr := gp.ring.GetTruthNode(key); peerAddr != "" && peerAddr != gp.self {
+	if peerAddr := gp.ring.GetTruthNode(key); peerAddr != "" && peerAddr != gp.selfServiceName {
 		logger.LogrusObj.Infof("[current peer %s] Pick remote peer %s", gp.self, peerAddr)
 		return gp.grpcFetchers[peerAddr], true
 	} else {

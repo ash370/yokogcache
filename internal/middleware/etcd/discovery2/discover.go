@@ -52,7 +52,8 @@ func ListServicePeers(serviceName string) ([]string, error) {
 
 	peers := []string{}
 	for key, endpoint := range key2EndpointMap {
-		peers = append(peers, endpoint.Addr)
+		//peers = append(peers, endpoint.Addr)
+		peers = append(peers, key[:21])
 		logger.LogrusObj.Infof("found endpoint %s (%s):(%s)", key, endpoint.Addr, endpoint.Metadata)
 	}
 	return peers, nil

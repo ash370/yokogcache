@@ -83,3 +83,25 @@
     ├── logger
     └── utils.go                    // ip address validation
 ```
+
+## 依赖
+
+1. etcd 服务（"127.0.0.1:2379"）
+
+2. mysql 服务（"127.0.0.1:3306"）
+
+3. goreman (etcd 集群) internal/middleware/etcd/cluster 中有使用说明
+
+   * 本项目默认依赖了 etcd 集群，需要先关闭本地的 etcd 服务，然后使用 goreman 同时启动三个 etcd 服务进行统一管理
+
+   * 如果不想依赖 etcd 集群，那么在 config/config.yml 中将 22379 和 32379 删除然后启动本地 etcd 服务即可
+
+4. gorm（数据库）
+
+5. grpc（rpc 通信协议）
+
+6. logrus（日志管理）
+
+7. viper（配置管理）
+
+8. protobuf（序列化）

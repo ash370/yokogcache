@@ -16,6 +16,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mattn/goreman v0.3.15 // indirect
+	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.5.16 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.16 // indirect
 	go.uber.org/atomic v1.7.0 // indirect

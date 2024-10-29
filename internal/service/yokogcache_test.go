@@ -5,12 +5,32 @@ import (
 	"log"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var db = map[string]string{
 	"Tom":  "630",
 	"Jack": "589",
 	"Sam":  "567",
+}
+
+func TestPush(t *testing.T) {
+	yoko := NewGroup("scores", 2<<10, RetrieverFunc(
+		func(key string) ([]byte, error) {
+			log.Println("[SlowDB] search key", key)
+			if v, ok := db[key]; ok {
+				return []byte(v), nil
+			}
+			return nil, fmt.Errorf("%s not exist", key)
+		}))
+
+	yoko.Put("key1", ByteView{[]byte("124")}, 1)
+	yoko.Put("key2", ByteView{[]byte("124")}, 3)
+	yoko.Put("key3", ByteView{[]byte("124")}, 3)
+	yoko.Put("key4", ByteView{[]byte("124")}, 3)
+	yoko.Put("key5", ByteView{[]byte("124")}, 4)
+
+	time.Sleep(10 * time.Second)
 }
 
 func TestRetriever(t *testing.T) {

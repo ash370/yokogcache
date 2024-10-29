@@ -1,6 +1,10 @@
 package lru
 
-import "container/list"
+import (
+	"container/list"
+	"yokogcache/internal/service/persistent"
+	"yokogcache/utils/logger"
+)
 
 //实现LRU最近最少使用淘汰算法，用于cache容量不够的情况下移除相应缓存记录
 //这里并未实现并发机制
@@ -21,6 +25,8 @@ type Cache struct {
 	ll      *list.List //链表头表示最近使用过
 
 	callback OnEvicted
+
+	snapshot *persistent.SnapShot
 }
 
 // 双向链表节点存储的对象，保存key方便查找和删除
@@ -87,4 +93,16 @@ func (c *Cache) RemoveOldest() {
 			c.callback(kv.key, kv.value)
 		}
 	}
+}
+
+func (c *Cache) Persist(log []string) {
+	if c.snapshot == nil {
+		c.snapshot = persistent.NewSnapshot("dump.spst")
+	}
+	err := c.snapshot.BgSave(c.hashmap)
+	if err != nil {
+		logger.LogrusObj.Error("持久化失败, err:", err)
+	}
+
+	//完成之后还要追加增量log
 }

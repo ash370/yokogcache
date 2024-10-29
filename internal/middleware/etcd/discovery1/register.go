@@ -4,22 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
+	"yokogcache/config"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/naming/endpoints"
 )
 
-var (
-	defaultEtcdConfig = clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
-		DialTimeout: 10 * time.Second,
-	}
-)
-
 func Register(serviceName string, addr string, stop chan error) error {
 	//创建Etcd客户端
-	cli, err := clientv3.New(defaultEtcdConfig)
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		return fmt.Errorf("create etcd client failed: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"yokogcache/config"
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 
 	"yokogcache/utils/logger"
@@ -20,7 +21,7 @@ var _ Fetcher = (*grpcFetcher)(nil)
 
 func (gf *grpcFetcher) Fetch(group string, key string) ([]byte, error) {
 	//创建一个etcd客户端（这里创建在etcd服务端的对外服务端口2379）
-	cli, err := clientv3.NewFromURL("http://localhost:2379")
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		return nil, err
 	}

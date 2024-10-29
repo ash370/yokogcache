@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"yokogcache/config"
 	"yokogcache/internal/db/dbservice"
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service"
@@ -32,10 +33,13 @@ func createGroup() *service.Group {
 		}))
 }
 
-// 分别在端口9999、10000、100001启动服务器节点组成集群
+// 分别在端口8001、8002、8003启动服务器节点组成集群
 func main() {
+	config.InitConfig()
+	dbservice.InitDB()
+
 	var port int
-	flag.IntVar(&port, "port", 9999, "Yokogcache server port")
+	flag.IntVar(&port, "port", 8001, "Yokogcache server port")
 	flag.Parse()
 
 	yoko := createGroup()

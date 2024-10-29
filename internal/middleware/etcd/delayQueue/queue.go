@@ -3,6 +3,7 @@ package delayqueue
 import (
 	"context"
 	"time"
+	"yokogcache/config"
 	"yokogcache/utils/logger"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -13,10 +14,7 @@ type DelayQueue struct {
 }
 
 func NewDelayQueue() *DelayQueue {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"127.0.0.1:2379"},
-		DialTimeout: 5 * time.Second,
-	})
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		logger.LogrusObj.Errorf("[Build delayqueue - new clientv3 failed, err:%s", err)
 		return nil
@@ -39,10 +37,7 @@ func (d *DelayQueue) Push(key string, ttl int64) error {
 }
 
 func DynamicKeyexpire(signal chan string) {
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"127.0.0.1:2379"},
-		DialTimeout: 5 * time.Second,
-	})
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		logger.LogrusObj.Errorf("[DynamicKeyexpire - ]failed to connected to etcd, error: %v", err)
 		return

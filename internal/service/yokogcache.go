@@ -121,7 +121,7 @@ func (g *Group) load(key string) (val ByteView, err error) {
 func (g *Group) getLocally(key string) (ByteView, error) {
 	bytes, err := g.retriever.retrieve(key)
 	if err != nil {
-		//todo: 对于不存在的key，为了防止缓存穿透，先在缓存中存一个空值并设置合理的过期时间
+		//对于不存在的key，为了防止缓存穿透，先在缓存中存一个空值并设置合理的过期时间
 		g.Put(key, ByteView{}, 10)
 		return ByteView{}, err
 	}

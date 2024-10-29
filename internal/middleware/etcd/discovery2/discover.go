@@ -2,6 +2,7 @@ package discovery2
 
 import (
 	"context"
+	"yokogcache/config"
 	"yokogcache/utils/logger"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -32,7 +33,7 @@ func Discovery(c *clientv3.Client, serviceName string) (*grpc.ClientConn, error)
 
 // 根据服务名发现节点
 func ListServicePeers(serviceName string) ([]string, error) {
-	cli, err := clientv3.New(defaultEtcdConfig)
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		logger.LogrusObj.Errorf("failed to connected to etcd, error: %v", err)
 		return []string{}, err
@@ -61,7 +62,7 @@ func ListServicePeers(serviceName string) ([]string, error) {
 
 // 动态监听节点变更
 func DynamicServices(update chan bool, serviceName string) {
-	cli, err := clientv3.New(defaultEtcdConfig)
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		logger.LogrusObj.Errorf("[DynamicServices - ]failed to connected to etcd, error: %v", err)
 		return

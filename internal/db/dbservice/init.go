@@ -2,6 +2,7 @@ package dbservice
 
 import (
 	"context"
+	"yokogcache/config"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -11,8 +12,9 @@ import (
 
 var _db *gorm.DB
 
-func init() {
-	dsn := "root:123456@tcp(127.0.0.1:3306)/testdb?charset=utf8mb4&parseTime=True&loc=Local"
+func InitDB() {
+	conf := config.Conf.Mysql
+	dsn := conf.UserName + ":" + conf.Password + "@tcp(" + conf.Host + ":" + conf.Port + ")/" + conf.Database + "?charset=" + conf.Charset + "&parseTime=True&loc=Local"
 	db, err := gorm.Open(mysql.New(mysql.Config{
 		DSN:                       dsn,
 		DefaultStringSize:         256,   // Default length of String type fields

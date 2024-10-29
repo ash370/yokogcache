@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"time"
+	"yokogcache/config"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -28,7 +29,7 @@ func GetPeers(prefix string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	cli, err := clientv3.NewFromURL("http://localhost:2379")
+	cli, err := clientv3.New(config.DefaultEtcdConfig)
 	if err != nil {
 		log.Fatalf("failed to create etcd client, err: %v", err)
 		return []string{}, err

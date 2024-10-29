@@ -1,28 +1,34 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"yokogcache/internal/db/dbservice"
 	discovery "yokogcache/internal/middleware/etcd/discovery2"
 	"yokogcache/internal/service"
 	"yokogcache/utils/logger"
 )
 
-var db = map[string]string{
+/*var db = map[string]string{
 	"Tom":  "630",
 	"Jack": "589",
 	"Sam":  "567",
-}
+}*/
 
 func createGroup() *service.Group {
 	return service.NewGroup("scores", 2<<10, service.RetrieverFunc(
 		func(key string) ([]byte, error) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			db := dbservice.NewStudentDB(ctx)
 			logger.LogrusObj.Infoln("[SlowDB] search key", key)
-			if v, ok := db[key]; ok {
-				return []byte(v), nil
+			if v, err := db.Load(key); err != nil {
+				return nil, fmt.Errorf("%s not exist", key)
+			} else {
+				return v, nil
 			}
-			return nil, fmt.Errorf("%s not exist", key)
 		}))
 }
 

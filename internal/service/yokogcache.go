@@ -125,14 +125,14 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 		return ByteView{}, err
 	}
 	value := ByteView{b: cloneBytes(bytes)} //取回的原始数据是字节切片，存其深拷贝的值，防止原始数据被篡改
-	//g.populateCache(key, value)             //数据存入缓存
+	g.populateCache(key, value)             //数据存入缓存
 	return value, nil
 }
 
 // 提供填充缓存的能力
-/*func (g *Group) populateCache(key string, value ByteView) {
+func (g *Group) populateCache(key string, value ByteView) {
 	g.localCache.add(key, value)
-}*/
+}
 
 // 从远程节点获取缓存
 func (g *Group) getFromPeer(peer Fetcher, key string) (ByteView, error) {
